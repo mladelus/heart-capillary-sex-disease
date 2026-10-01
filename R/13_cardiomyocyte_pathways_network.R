@@ -12,8 +12,9 @@ cm <- D$cardiomyocyte |> filter(chr_class == "autosome") |>
          consistent = p_h < 0.05 & p_d < 0.05 & sign(z_h) == sign(z_d) & FDR_comb < 0.05,
          direction = ifelse(z_comb > 0, "higher in females", "higher in males"))
 cat("\n== Cardiomyocyte gene lists (autosomal; background =", nrow(cm), "genes tested in both cohorts) ==\n")
-cm |> summarise(replicated = sum(replicated), replicated_female = sum(replicated & z_comb > 0), replicated_male = sum(replicated & z_comb < 0),
-                consistent = sum(consistent), consistent_female = sum(consistent & z_comb > 0), consistent_male = sum(consistent & z_comb < 0)) |> print()
+cm |> summarise(n_replicated = sum(replicated), replicated_higher_in_females = sum(replicated & z_comb > 0),
+                replicated_higher_in_males = sum(replicated & z_comb < 0), n_consistent = sum(consistent),
+                consistent_higher_in_females = sum(consistent & z_comb > 0), consistent_higher_in_males = sum(consistent & z_comb < 0)) |> print(width = Inf)
 genes_tab <- cm |> filter(replicated | consistent) |>
   select(gene, chr, direction, logFC_healthy = logFC_h, FDR_healthy = FDR_h, logFC_disease = logFC_d, FDR_disease = FDR_d,
          z_comb, FDR_comb, replicated, consistent) |> arrange(desc(abs(z_comb)))
