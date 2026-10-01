@@ -22,6 +22,10 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/05_sex_by_disease.R` | sex × DCM interaction (same consortium) and cross-study comparison with paper 1 |
 | `R/06_pericytes_xy.R` | mural cells (pericytes) and X–Y paralog dosage in disease |
 | `R/07_figures.R` | figures |
+| `R/08_where_sex_differences.R` | Stage 3 (exploratory): discovery in one cohort, replication in the other, by cell type; Hallmark pathways |
+| `R/09_hormone_receptors.R` | Stage 3: sex-hormone receptor map; estrogen/androgen-response scores in capillaries |
+| `R/10_capillary_states_variability.R` | Stage 3: capillary cell states; donor-to-donor variability |
+| `R/11_combined_and_figures.R` | Health + disease combined estimates; stage 3 figures |
 
 ## How to run
 1. Install R ≥ 4.3 and the packages listed in `R/00_setup.R` (the script installs missing ones).

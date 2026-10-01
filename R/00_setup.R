@@ -176,6 +176,61 @@ verdict <- function(p_adj, lo90, hi90, same_dir = 1, k = 1) case_when(
   lo90 > -MARGIN & hi90 < MARGIN        ~ paste0("equivalent (within +/-", MARGIN, " SD)"),
   TRUE                                  ~ "inconclusive")
 
+# ---- Stage 3 helpers (scripts 08-11) ------------------------------------------
+# Both cohorts: stage 1 = healthy (paper 1 data folder), stage 2 = disease (this folder).
+# Each sample gets a "stratum": dataset (healthy) or disease (stage 2); normal donors of stage 2 are dropped.
+CELLTYPES <- list(capillary = c("capillary", "capillary"), arterial = c("arterial", "arterial"),
+                  venous = c("venous", "venous"), mural = c("pericyte", "mural"),
+                  fibroblast = c("fibroblast", "fibroblast"), cardiomyocyte = c("cardiomyocyte", "cardiomyocyte"),
+                  myeloid = c("myeloid", "myeloid"), lymphoid = c("lymphoid", "lymphoid"))
+load_cohorts <- function() {
+  h <- readRDS(file.path(PAPER1_DIR, "pb.rds")); d <- readRDS("pb.rds")
+  h$samples <- h$samples |> mutate(stratum = substr(as.character(dataset_title), 1, 40), cohort = "healthy")
+  d$samples <- d$samples |> filter(!grepl("^normal", stratum)) |> mutate(cohort = "disease")
+  list(healthy = h, disease = d)
+}
+chrom_map <- function() {
+  if (!requireNamespace("EnsDb.Hsapiens.v86", quietly = TRUE)) BiocManager::install("EnsDb.Hsapiens.v86", update = FALSE, ask = FALSE)
+  gg <- ensembldb::genes(EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86, columns = c("gene_name", "seq_name"), return.type = "data.frame")
+  tibble(gene = gg$gene_name, chr = as.character(gg$seq_name)) |>
+    filter(chr %in% c(1:22, "X", "Y")) |> distinct(gene, .keep_all = TRUE) |>
+    mutate(chr_class = case_when(chr == "X" ~ "X", chr == "Y" ~ "Y", TRUE ~ "autosome"))
+}
+# limma-voom per stratum (sex + age [+ assay]), inverse-variance meta of logFC across strata
+de_meta <- function(mat, S, min_k = 2) {
+  S <- S |> filter(sample %in% colnames(mat))
+  used <- list()
+  per <- bind_rows(lapply(split(S, S$stratum), function(d) {
+    d <- droplevels(d |> filter(!is.na(age)))
+    if (sum(d$sex == "female") < MIN_PER_SEX || sum(d$sex == "male") < MIN_PER_SEX) return(NULL)
+    y <- DGEList(mat[, d$sample, drop = FALSE]); y <- calcNormFactors(y[filterByExpr(y, group = d$sex), , keep.lib.sizes = FALSE])
+    X <- if (n_distinct(d$assay) > 1) model.matrix(~ sex + age + assay, d) else model.matrix(~ sex + age, d)
+    X <- X[, colSums(abs(X)) > 0 & !duplicated(t(X)), drop = FALSE]
+    if (ncol(X) >= nrow(X)) return(NULL)
+    fit <- eBayes(lmFit(voom(y, X), X)); tt <- topTable(fit, coef = "sexfemale", number = Inf, sort.by = "none")
+    used[[d$stratum[1]]] <<- d |> select(sample, stratum, sex)
+    tibble(stratum = d$stratum[1], n = nrow(d), gene = rownames(tt), logFC = tt$logFC, se = tt$logFC / tt$t)
+  }))
+  if (!nrow(per)) return(tibble())
+  out <- per |> filter(is.finite(se), se > 0) |> group_by(gene) |> filter(n() >= min(min_k, n_distinct(per$stratum))) |>
+    summarise(k = n(), logFC = sum(logFC / se^2) / sum(1 / se^2), se = sqrt(1 / sum(1 / se^2)), .groups = "drop") |>
+    mutate(z = logFC / se, p = 2 * pnorm(-abs(z)), FDR = p.adjust(p, "BH"))
+  attr(out, "donors") <- bind_rows(used)            # donors that actually entered the model
+  out
+}
+hallmark_sets <- function() {
+  if (!requireNamespace("msigdbr", quietly = TRUE)) install.packages("msigdbr")
+  if (packageVersion("msigdbr") >= "10.0.0" && !requireNamespace("msigdbdf", quietly = TRUE))
+    install.packages("msigdbdf", repos = c("https://igordot.r-universe.dev", "https://cloud.r-project.org"))
+  m <- tryCatch(msigdbr::msigdbr(species = "Homo sapiens", collection = "H"),
+                error = function(e) msigdbr::msigdbr(species = "Homo sapiens", category = "H"))
+  split(m$gene_symbol, m$gs_name)
+}
+r3 <- function(d) d |> mutate(across(where(is.double), ~ signif(.x, 3)))
+core_cols <- function(S) S |> transmute(sample, stratum, cohort, sex = as.character(sex), age, assay = as.character(assay),
+  n_capillary, n_EC, n_ratio_cells = if ("n_mural" %in% names(S)) n_mural else n_pericyte) |>
+  mutate(sex = relevel(factor(sex), ref = "male"))
+
 message("Setup complete (paper 2). Census ", CENSUS_VERSION, " open. Data folder: ", getwd(),
         "\nPaper 1 folder (healthy donors): ", PAPER1_DIR, if (file.exists(file.path(PAPER1_DIR, "pb.rds"))) " [found]" else " [NOT FOUND]")
 
@@ -184,4 +239,4 @@ message("Setup complete (paper 2). Census ", CENSUS_VERSION, " open. Data folder
 #                    "lme4", "lmerTest", "metafor", "patchwork"))
 # install.packages("cellxgene.census",
 #                  repos = c("https://chanzuckerberg.r-universe.dev", "https://cloud.r-project.org"))
-# BiocManager::install(c("edgeR", "limma", "EnsDb.Hsapiens.v86"), update = FALSE, ask = FALSE)
+# BiocManager::install(c("edgeR", "limma", "EnsDb.Hsapiens.v86"), update = FALSE, ask = FALSE); install.packages("msigdbr")

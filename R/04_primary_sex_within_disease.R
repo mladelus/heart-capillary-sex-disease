@@ -60,8 +60,8 @@ sens <- bind_rows(
   run_meta(fit_all(scores, scorable, c("Stress", "CM_ambient"))) |> mutate(analysis = "+ stress + ambient RNA"),
   if (any(grepl("^dilated", names(by_st))))
     run_meta(fit_all(scores |> filter(grepl("^dilated", stratum)), scorable)) |> mutate(analysis = "DCM only"),
-  bind_rows(lapply(names(by_st), function(k) run_meta(per_st |> filter(stratum != k, program %in% scorable)) |>
-    mutate(analysis = paste("without", k)))))
+  bind_rows(lapply(names(by_st), function(left_out) run_meta(per_st |> filter(stratum != left_out, program %in% scorable)) |>
+    mutate(analysis = paste("without", left_out)))))
 cat("\n== Sensitivity analyses ==\n")
 sens |> select(analysis, program, k, est, lo, hi, p) |> r3() |> print(n = Inf, width = Inf)
 

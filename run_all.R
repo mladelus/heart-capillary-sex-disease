@@ -4,7 +4,9 @@
 # (or set HCAP_DATA). Paper 2 data go to ~/Documents/heart_capillary_disease (or set HCAP2_DATA).
 repo <- getwd()
 for (f in c("00_setup.R", "01_inventory.R", "02_download.R", "02b_download_mural.R", "03_ec_subtypes_pseudobulk.R",
-            "04_primary_sex_within_disease.R", "05_sex_by_disease.R", "06_pericytes_xy.R", "07_figures.R")) {
+            "04_primary_sex_within_disease.R", "05_sex_by_disease.R", "06_pericytes_xy.R", "07_figures.R",
+            "08_where_sex_differences.R", "09_hormone_receptors.R", "10_capillary_states_variability.R",
+            "11_combined_and_figures.R")) {
   message("\n########## ", f, " ##########")
   source(file.path(repo, "R", f))
 }
