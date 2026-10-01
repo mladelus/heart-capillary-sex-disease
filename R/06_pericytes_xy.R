@@ -1,22 +1,23 @@
 # =============================================================================
-# 06  SECONDARY - pericytes and X-Y dosage in diseased hearts
-# (a) pericytes per capillary EC (log ratio) and five pericyte programs: female - male within disease strata
+# 06  SECONDARY - mural cells (pericytes + smooth muscle) and X-Y dosage in diseased hearts
+# (a) mural cells per capillary EC (log ratio) and the five paper 1 pericyte programs scored in mural cells:
+#     female - male within disease strata. Mural = pericyte + mural cell + smooth muscle labels (Deviation 1).
 # (b) X-Y paralogs in capillary ECs: X copy alone and X + Y (log2 CPM), female - male within disease strata,
 #     compared with healthy capillaries from paper 1 (cross-study difference)
 # Makes: p2_pericytes_xy.rds, tables/P2_TableS_pericytes.csv, tables/P2_TableS_xy.csv
 # =============================================================================
 P <- readRDS("pb.rds")
 S <- P$samples |> filter(!grepl("^normal", stratum), n_EC >= MIN_EC) |>
-  mutate(peri_cap_ratio = log((n_pericyte + 0.5) / (n_capillary + 0.5)))
+  mutate(mural_cap_ratio = log((n_mural + 0.5) / (n_capillary + 0.5)))
 r3 <- function(d) d |> mutate(across(where(is.double), ~ signif(.x, 3)))
 fit_strata <- function(sc, vars) bind_rows(lapply(vars, function(v) bind_rows(lapply(split(sc, sc$stratum), function(d) {
   r <- sex_fit(d, v); if (is.null(r)) NULL else mutate(r, stratum = d$stratum[1], program = v) }))))
 meta_all <- function(per) per |> group_by(program) |> group_modify(~ meta_one(.x)) |> ungroup()
 
 # ---- (a) pericytes ----
-ratio <- meta_all(fit_strata(S, "peri_cap_ratio"))
-pe <- P$mats$pericyte
-Sp <- S |> filter(n_pericyte >= MIN_CT, sample %in% colnames(pe))
+ratio <- meta_all(fit_strata(S, "mural_cap_ratio"))
+pe <- P$mats$mural
+Sp <- S |> filter(n_mural >= MIN_CT, sample %in% colnames(pe))
 peri_sc <- bind_rows(lapply(split(Sp, Sp$stratum), function(d) {
   if (sum(d$sex == "female") < MIN_PER_SEX || sum(d$sex == "male") < MIN_PER_SEX) return(NULL)
   y <- DGEList(pe[, d$sample, drop = FALSE]); y <- calcNormFactors(y[filterByExpr(y, group = d$sex), , keep.lib.sizes = FALSE])
@@ -24,10 +25,10 @@ peri_sc <- bind_rows(lapply(split(Sp, Sp$stratum), function(d) {
   bind_cols(d, as_tibble(sapply(c(peri_programs, pos_control), function(g) prog_score(lc, g))))
 }))
 peri <- meta_all(fit_strata(peri_sc, names(c(peri_programs, pos_control))))
-cat("\n== (a) Pericytes in disease: female - male (SD units) ==\n")
+cat("\n== (a) Mural cells in disease: female - male (SD units) ==\n")
 bind_rows(ratio, peri) |> select(program, k, n_w, n_m, est, lo, hi, p, lo90, hi90, I2) |> r3() |> print(width = Inf)
-cat("\nRaw pericytes per 100 capillary ECs (median) by stratum and sex:\n")
-S |> group_by(stratum, sex) |> summarise(donors = n(), median = median(100 * n_pericyte / pmax(n_capillary, 1)),
+cat("\nRaw mural cells per 100 capillary ECs (median) by stratum and sex:\n")
+S |> group_by(stratum, sex) |> summarise(donors = n(), median = median(100 * n_mural / pmax(n_capillary, 1)),
                                          .groups = "drop") |> r3() |> print(n = Inf, width = Inf)
 
 # ---- (b) X-Y dosage in capillary ECs ----

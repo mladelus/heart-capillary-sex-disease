@@ -85,13 +85,25 @@ for (x in dl) {
 }
 mats <- c(lapply(ec_pb, stack_vecs), list(capillary_atlas = stack_vecs(atlas_cap)), lapply(other_pb, stack_vecs))
 
+# mural cells (pericytes + smooth muscle, one rule for every dataset; from script 02b)
+mural_n <- c()
+if (dir.exists("dl_mural") && length(list.files("dl_mural"))) {
+  mu <- lapply(list.files("dl_mural", full.names = TRUE), readRDS)
+  mural_n <- unlist(lapply(mu, `[[`, "n"))
+  mpb <- do.call(c, lapply(mu, `[[`, "pb"))
+  mats$mural <- stack_vecs(mpb[names(mural_n)[mural_n >= MIN_CT]])
+} else warning("No mural-cell download found (run 02b_download_mural.R); mural analyses will be skipped")
+
 samples <- bind_rows(n_tab) |>
   left_join(donors |> select(dataset_id, donor_id, dataset_title, sex, age, age_decade, assay, suspension, disease, stratum), by = c("dataset_id", "donor_id")) |>
-  mutate(sex = relevel(factor(sex), ref = "male"), assay = factor(assay))
+  mutate(sex = relevel(factor(sex), ref = "male"), assay = factor(assay),
+         n_mural = ifelse(sample %in% names(mural_n), mural_n[sample], 0L))
 
 cat("\n== Donors with >= ", MIN_CAP, " capillary ECs, by stratum and sex ==\n", sep = "")
 samples |> filter(n_capillary >= MIN_CAP) |> count(stratum, sex) |>
   pivot_wider(names_from = sex, values_from = n, values_fill = 0) |> print(n = Inf, width = Inf)
+cat("\n== Mural cells per donor (median, range) by stratum ==\n")
+samples |> group_by(stratum) |> summarise(median = median(n_mural), min = min(n_mural), max = max(n_mural)) |> print(width = Inf)
 cat("\n== Pseudobulks per cell group ==\n")
 print(sapply(mats, ncol))
 

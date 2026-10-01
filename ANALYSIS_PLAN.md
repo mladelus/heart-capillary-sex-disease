@@ -86,4 +86,4 @@ All four diseases available in open single-cell data are more common or more sev
 
 ## Deviations
 
-*(none yet)*
+1. **Mural cells instead of pericytes (made before any pericyte or sex result was seen).** After download, the cell labels showed that two of the three datasets (DCM/ACM atlas; myocarditis) label pericytes and smooth muscle cells together as "mural cell", and only the myocardial infarction dataset labels pericytes separately. Using the "pericyte" label alone would have given most donors zero pericytes. For aim 3 we therefore use one rule for every dataset: mural cells = pericyte + mural cell + smooth muscle labels (cardiac mural cells are mostly pericytes). These cells are downloaded by a new script, `02b_download_mural.R`. The ratio becomes mural cells per capillary EC, and the five pericyte programs are scored in the mural-cell pseudobulk. The primary analysis (aims 1 and 2) is unchanged.

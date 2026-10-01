@@ -16,10 +16,11 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/00_setup.R` | packages, settings, gene programs, shared functions |
 | `R/01_inventory.R` | eligible donors and disease strata (metadata only) |
 | `R/02_download.R` | downloads counts for included donors |
+| `R/02b_download_mural.R` | downloads mural cells (pericytes + smooth muscle), one rule for all datasets |
 | `R/03_ec_subtypes_pseudobulk.R` | endothelial subtypes; donor-level pseudobulks |
 | `R/04_primary_sex_within_disease.R` | **primary**: female - male within disease, pooled; equivalence ±0.8 SD; permutations |
 | `R/05_sex_by_disease.R` | sex × DCM interaction (same consortium) and cross-study comparison with paper 1 |
-| `R/06_pericytes_xy.R` | pericytes and X–Y paralog dosage in disease |
+| `R/06_pericytes_xy.R` | mural cells (pericytes) and X–Y paralog dosage in disease |
 | `R/07_figures.R` | figures |
 
 ## How to run
