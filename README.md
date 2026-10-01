@@ -26,6 +26,7 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/09_hormone_receptors.R` | Stage 3: sex-hormone receptor map; estrogen/androgen-response scores in capillaries |
 | `R/10_capillary_states_variability.R` | Stage 3: capillary cell states; donor-to-donor variability |
 | `R/11_combined_and_figures.R` | Health + disease combined estimates; stage 3 figures |
+| `R/12_immune_and_ambient.R` | Stage 3: immune-cell programs and composition; estrogen response by cell type; ambient-RNA check |
 
 ## How to run
 1. Install R ≥ 4.3 and the packages listed in `R/00_setup.R` (the script installs missing ones).
