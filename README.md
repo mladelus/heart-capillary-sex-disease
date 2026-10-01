@@ -27,6 +27,7 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/10_capillary_states_variability.R` | Stage 3: capillary cell states; donor-to-donor variability |
 | `R/11_combined_and_figures.R` | Health + disease combined estimates; stage 3 figures |
 | `R/12_immune_and_ambient.R` | Stage 3: immune-cell programs and composition; estrogen response by cell type; ambient-RNA check |
+| `R/13_cardiomyocyte_pathways_network.R` | Stage 3: pathways and STRING protein network for cardiomyocyte sex-biased genes; endothelin genes in capillaries |
 
 ## How to run
 1. Install R ≥ 4.3 and the packages listed in `R/00_setup.R` (the script installs missing ones).
