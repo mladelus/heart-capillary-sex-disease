@@ -67,6 +67,32 @@ hits |> filter(category == "cardiovascular") |> group_by(gene_set, gene, trait) 
 cat("\nGenes in each set with at least one cardiovascular association:\n")
 hits |> filter(category == "cardiovascular") |> group_by(gene_set) |> summarise(genes = paste(sort(unique(gene)), collapse = ", ")) |> print(width = Inf)
 
+# ---- distance-based version: cardiovascular associations within 100 kb, 500 kb and 1 Mb of each gene ----
+# The catalogue's "mapped gene" is only the nearest gene. Regulatory variants can lie further away, so every gene is
+# also given a window on each side, and the gene sets are compared with their backgrounds at each window size.
+coords <- gg |> filter(seq_name %in% c(1:22, "X")) |> group_by(gene = gene_name) |>
+  summarise(chr = as.character(seq_name[1]), start = min(gene_seq_start), end = max(gene_seq_end), .groups = "drop")
+cvpos <- A |> filter(!is.na(p), p < 5e-8, category == "cardiovascular", !is.na(pos)) |> distinct(chr, pos)
+cvpos <- split(sort(cvpos$pos), cvpos$chr[order(cvpos$pos)])
+count_window <- function(cd, W) mapply(function(ch, s, e) { v <- cvpos[[ch]]; if (is.null(v)) 0L else
+  findInterval(e + W, v) - findInterval(s - W - 1, v) }, cd$chr, cd$start, cd$end)
+win <- bind_rows(lapply(c(1e5, 5e5, 1e6), function(W) bind_rows(lapply(names(sets), function(nm) {
+  bg <- union(sets[[nm]]$bg, sets[[nm]]$genes); cd <- coords |> filter(gene %in% bg); if (!nrow(cd)) return(NULL)
+  cd$n <- count_window(cd, W); inset <- cd$gene %in% sets[[nm]]$genes; if (sum(inset) < 2) return(NULL)
+  ft <- fisher.test(table(factor(inset, c(FALSE, TRUE)), factor(cd$n > 0, c(FALSE, TRUE))))
+  tibble(window_kb = W / 1000, gene_set = nm, set_genes = sum(inset), pct_set_with_hit = 100 * mean(cd$n[inset] > 0),
+         pct_background_with_hit = 100 * mean(cd$n[!inset] > 0), odds_ratio = unname(ft$estimate), p_any_hit = ft$p.value,
+         median_hits_set = median(cd$n[inset]), median_hits_background = median(cd$n[!inset]),
+         p_count = suppressWarnings(wilcox.test(cd$n[inset], cd$n[!inset])$p.value))
+}))))
+cat("\n== Distance-based: genome-wide cardiovascular associations within a window of each gene, set vs background ==\n")
+win |> r3() |> arrange(gene_set, window_kb) |> print(n = Inf, width = Inf)
+near1mb <- bind_rows(lapply(c("Cardiomyocyte sex-biased (55 consistent)", "X members of X-Y pairs (18)"), function(nm) {
+  cd <- coords |> filter(gene %in% sets[[nm]]$genes); cd$n_100kb <- count_window(cd, 1e5); cd$n_500kb <- count_window(cd, 5e5)
+  cd$n_1Mb <- count_window(cd, 1e6); mutate(cd, gene_set = nm) }))
+cat("\nCardiovascular associations near each gene (counts at 100 kb, 500 kb, 1 Mb):\n")
+near1mb |> select(gene_set, gene, chr, n_100kb, n_500kb, n_1Mb) |> arrange(gene_set, desc(n_100kb)) |> print(n = Inf, width = Inf)
+
 # ---- the EDN1 / PHACTR1 locus ----
 ed <- gg |> filter(gene_name %in% c("EDN1", "PHACTR1"), gene_biotype == "protein_coding")
 lo <- min(ed$gene_seq_start) - 2e5; hi <- max(ed$gene_seq_end) + 2e5; chr_ed <- as.character(ed$seq_name[1])
@@ -84,4 +110,5 @@ dir.create("tables", showWarnings = FALSE)
 write.csv(enr, "tables/S3I_gene_set_enrichment.csv", row.names = FALSE)
 write.csv(hits, "tables/S3I_gene_set_hits.csv", row.names = FALSE)
 write.csv(loc, "tables/S3I_EDN1_locus.csv", row.names = FALSE)
-saveRDS(list(enrichment = enr, hits = hits, edn1_locus = loc, x_ours = x_ours), "stage3_gwas_wide.rds")
+write.csv(win, "tables/S3I_window_enrichment.csv", row.names = FALSE)
+saveRDS(list(enrichment = enr, windows = win, near = near1mb, hits = hits, edn1_locus = loc, x_ours = x_ours), "stage3_gwas_wide.rds")
