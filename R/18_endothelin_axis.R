@@ -17,13 +17,15 @@ gene_expr <- function(ct, genes) bind_rows(lapply(c("healthy", "disease"), funct
   bind_rows(lapply(split(S, S$stratum), function(d) {
     if (nrow(d) < 2) return(NULL)
     lc <- cpm(calcNormFactors(DGEList(m[, d$sample, drop = FALSE])), log = TRUE, prior.count = 1)
-    for (g in genes) d[[g]] <- if (g %in% rownames(lc)) lc[g, d$sample] else NA_real_
+    for (g in genes) { d[[g]] <- if (g %in% rownames(lc)) lc[g, d$sample] else NA_real_
+      d[[paste0(g, "__cnt")]] <- if (g %in% rownames(m)) m[g, d$sample] else 0 }          # raw counts, to drop genes that are not expressed
     d
   }))
 }))
 lfit <- function(d, v, extra = NULL) {             # female - male in the units of v (not standardized)
   d <- droplevels(d[is.finite(d[[v]]) & !is.na(d$age), ])
   if (sum(d$sex == "female") < MIN_PER_SEX || sum(d$sex == "male") < MIN_PER_SEX || sd(d[[v]]) == 0) return(NULL)
+  cn <- paste0(v, "__cnt"); if (cn %in% names(d) && mean(d[[cn]] > 0) < 0.5) return(NULL)    # detected in fewer than half the donors
   rhs <- c("sex", "age", extra, if (n_distinct(d$assay) > 1) "assay")
   co <- tryCatch(summary(lm(as.formula(paste0("`", v, "` ~ ", paste(rhs, collapse = " + "))), data = d))$coefficients, error = function(e) NULL)
   if (is.null(co) || !"sexfemale" %in% rownames(co)) return(NULL)
@@ -102,12 +104,16 @@ Dd <- bind_rows(lapply(c("healthy", "disease"), function(co) {
 }))
 feats <- c(names(feat_sets), "age_z")
 track <- bind_rows(lapply(feats, function(f) { d <- Dd[is.finite(Dd[[f]]) & is.finite(Dd$EDN1_z), ]
-  co <- summary(lm(as.formula(paste("EDN1_z ~", f, "+ stratum")), data = d))$coefficients
-  tibble(feature = f, slope_SD_per_SD = co[f, 1], p = co[f, 4], donors = nrow(d)) }))
+  if (nrow(d) < 10) return(NULL)
+  fm <- if (n_distinct(d$stratum) > 1) paste("EDN1_z ~", f, "+ stratum") else paste("EDN1_z ~", f)
+  co <- tryCatch(summary(lm(as.formula(fm), data = d))$coefficients, error = function(e) NULL)
+  if (is.null(co) || !f %in% rownames(co)) return(NULL)
+  tibble(feature = f, slope_SD_per_SD = co[f, 1], p = co[f, 4], donors = nrow(d), strata = n_distinct(d$stratum)) }))
 cat("\n== (d) What tracks capillary EDN1 across donors (within dataset/disease)? ==\n")
 track |> r3() |> arrange(p) |> print()
 adj <- bind_rows(pool(Dd, "EDN1")$meta |> mutate(adjusted_for = "nothing extra"),
-                 bind_rows(lapply(names(feat_sets), function(f) pool(Dd, "EDN1", f)$meta |> mutate(adjusted_for = f))),
+                 bind_rows(lapply(names(feat_sets), function(f) { r <- pool(Dd[is.finite(Dd[[f]]), ], "EDN1", f)$meta
+                   if (!nrow(r)) NULL else mutate(r, adjusted_for = f) })),
                  pool(Dd, "EDN1", c("Stress", "CM_ambient", "Hypoxia", "Inflammation"))$meta |> mutate(adjusted_for = "stress + ambient + hypoxia + inflammation")) |>
   filter(cohort == "both")
 cat("\n== (d) EDN1 in capillaries, female - male (log2), all 138 donors, after adjusting for each feature ==\n")
