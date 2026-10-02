@@ -45,10 +45,10 @@ X <- as_tibble(G[G$CHR_ID == "X", ]) |>
   filter(!is.na(pos))
 cat("\nGWAS Catalog:", nrow(G), "associations in total;", nrow(X), "on the X chromosome with a position.\n")
 txt <- tolower(paste(X$trait, X$mapped_trait))
-X$category <- case_when(
+X$category <- case_when(   # sex-hormone traits are checked first, so "SHBG adjusted for BMI" is a hormone trait, not a metabolic one
+  grepl("testosterone|estradiol|oestradiol|shbg|sex hormone|menopause|menarche|puberty|androgen", txt) ~ "sex hormone or reproductive",
   grepl("coronary|myocard|heart|cardi|angina|blood pressure|hypertens|stroke|atrial|aort|vascular|arter|venous|thrombo|pulse|qt interval|electrocardio", txt) ~ "cardiovascular",
   grepl("lipid|cholesterol|ldl|hdl|triglycer|body mass|bmi|obes|waist|adipos|fat |diabet|glucose|hba1c|insulin|metabolic", txt) ~ "cardiometabolic",
-  grepl("testosterone|estradiol|oestradiol|shbg|sex hormone|menopause|menarche|puberty|androgen", txt) ~ "sex hormone or reproductive",
   grepl("blood cell|platelet|hemoglobin|haemoglobin|lymphocyte|neutrophil|monocyte|eosinophil|immun|autoimmun|lupus|arthritis", txt) ~ "blood or immune",
   TRUE ~ "other")
 X$tier <- ifelse(!is.na(X$p) & X$p < 5e-8, "genome-wide (p < 5e-8)", "suggestive (5e-8 to 1e-5)")   # fixed before running
@@ -98,7 +98,9 @@ if (!is.null(eq) && nrow(eq)) {
   eq |> count(gene, tissue) |> pivot_wider(names_from = tissue, values_from = n, values_fill = 0) |> print(width = Inf)
   cat("\nStrongest eQTL per gene and tissue (effect = change in expression per alternative allele):\n")
   eq |> group_by(gene, tissue) |> slice_min(p, n = 1, with_ties = FALSE) |> ungroup() |> r3() |> print(n = Inf, width = Inf)
-  ov <- eq |> inner_join(X |> select(snp, trait, gwas_p = p, category, author, pubmed), by = "snp")
+  ov <- eq |> group_by(gene, snp) |> slice_min(p, n = 1, with_ties = FALSE) |> ungroup() |>      # best tissue per variant
+    inner_join(X |> select(snp, trait, gwas_p = p, category, author, pubmed) |> distinct(snp, trait, .keep_all = TRUE),
+               by = "snp", relationship = "many-to-many") |> arrange(gene, category, gwas_p)
   cat("\n== eQTL variants that are themselves catalogued GWAS variants ==\n")
   if (nrow(ov)) ov |> mutate(trait = substr(trait, 1, 60)) |> r3() |> print(n = Inf, width = Inf) else cat("None.\n")
 } else { cat("\nNo GTEx eQTLs were returned for these genes (none significant, or the GTEx service could not be reached).\n"); ov <- tibble() }
