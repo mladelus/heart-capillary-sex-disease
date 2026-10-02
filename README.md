@@ -29,6 +29,8 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/12_immune_and_ambient.R` | Stage 3: immune-cell programs and composition; estrogen response by cell type; ambient-RNA check |
 | `R/13_cardiomyocyte_pathways_network.R` | Stage 3: pathways and STRING protein network for cardiomyocyte sex-biased genes; endothelin genes in capillaries |
 | `R/14_gtex_validation.R` | GTEx bulk left ventricle as a third cohort: endothelin genes, cardiomyocyte genes, younger females |
+| `R/15_main_figures.R` | Main figures of the combined paper |
+| `R/16_gwas_xlinked_lookup.R` | Stage 3: GWAS Catalog associations and GTEx eQTLs near the X-linked paralog genes |
 
 ## How to run
 1. Install R ≥ 4.3 and the packages listed in `R/00_setup.R` (the script installs missing ones).

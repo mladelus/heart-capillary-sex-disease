@@ -93,10 +93,10 @@ Xg  <- model.matrix(~ sex + band + SMRIN + isch + hardy, sc)
 Xg  <- Xg[, colSums(abs(Xg)) > 0, drop = FALSE]
 fit <- eBayes(lmFit(voom(y, Xg), Xg))
 tt  <- topTable(fit, coef = "sexfemale", number = Inf, sort.by = "none") |> tibble::rownames_to_column("gene") |>
-  transmute(gene, logFC_gtex = logFC, t_gtex = t, p_gtex = P.Value, FDR_gtex = adj.P.Val)
+  transmute(gene, logFC_gtex = logFC, t_gtex = t, p_gtex = P.Value, FDR_gtex = adj.P.Val) |> as_tibble()
 Xc  <- cbind(Xg, cap_content = sc$cap_content)
 ttc <- topTable(eBayes(lmFit(voom(y, Xc), Xc)), coef = "sexfemale", number = Inf, sort.by = "none") |>
-  tibble::rownames_to_column("gene") |> transmute(gene, logFC_adj_cap = logFC, p_adj_cap = P.Value)
+  tibble::rownames_to_column("gene") |> transmute(gene, logFC_adj_cap = logFC, p_adj_cap = P.Value) |> as_tibble()
 
 # ---- A. endothelin genes ----
 ETG <- intersect(c("EDN1", "EDNRB", "ECE1", "EDNRA", "ACE"), rownames(lc))
