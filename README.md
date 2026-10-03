@@ -32,6 +32,10 @@ with dilated cardiomyopathy, arrhythmogenic cardiomyopathy, myocardial infarctio
 | `R/15_main_figures.R` | Main figures of the combined paper |
 | `R/16_gwas_xlinked_lookup.R` | Stage 3: GWAS Catalog associations and GTEx eQTLs near the X-linked paralog genes |
 | `R/17_gwas_wider_gene_sets.R` | Stage 3: GWAS Catalog for wider gene sets (cardiomyocyte sex-biased genes, X-linked genes, endothelin locus) |
+| `R/18_endothelin_axis.R` | Stage 3: the endothelin axis (ligand, receptors, EDN1-positive cells, correlates, age) |
+| `R/19_edn1_cells_and_eqtl.R` | Stage 3: EDN1-positive capillary cells at single-cell level; rs9349379 and sex-biased eQTLs in GTEx |
+| `R/20_ec_umap.R` | Stage 3: UMAP of endothelial cells from all 138 donors (descriptive; for figures) |
+| `figures/` | Python scripts that draw the manuscript figures from the saved result files (see `figures/README.md`) |
 
 ## How to run
 1. Install R ≥ 4.3 and the packages listed in `R/00_setup.R` (the script installs missing ones).
