@@ -17,14 +17,14 @@ if (!requireNamespace("rhdf5", quietly = TRUE)) {
 }
 suppressPackageStartupMessages({ library(cellxgene.census); library(rhdf5); library(dplyr); library(tidyr); library(stringr) })
 while (sink.number() > 0) sink()          # close any output file left open by an earlier run
-sink(file.path(OUT, "tables", "K1_labels_output.txt"), split = TRUE)
+sink(file.path(OUT, "tables", "K1_labels_output_kidney.txt"), split = TRUE)
 show <- function(x, n = Inf) print(as_tibble(x), n = n, width = Inf)
 
 DS <- c(snRNA = "a12ccb9b-4fbe-457d-8590-ac78053259ef", scRNA = "dea717d4-7bc0-4e46-950f-fd7e1cc8df7d")
 
 # ---- read the obs table of an h5ad file without loading expression ---------------------------------------------------
 read_obs_h5ad <- function(f) {
-  ls <- h5ls(f, recursive = 2); top <- ls[ls$group == "/obs", ]
+  ls <- h5ls(f, recursive = 3); ls <- ls[grepl("^/obs", ls$group), ]; top <- ls[ls$group == "/obs", ]
   if (!nrow(top)) stop("This file stores obs in an old format that this script does not read: ", f)
   out <- list()
   for (i in seq_len(nrow(top))) {
@@ -95,29 +95,6 @@ if (all(vapply(obs_all, function(o) all(c("donor_id", "sex", "disease") %in% nam
   write.csv(dd, file.path(OUT, "tables", "K1_KPMP_donors.csv"), row.names = FALSE)
 }
 
-# ---- Tabula Sapiens inventory (part B of K0, which stopped with a printing error) -------------------------------------
-census <- open_soma(census_version = CENSUS_VERSION)
-ds <- as.data.frame(census$get("census_info")$get("datasets")$read()$concat())
-ts_ds <- ds |> filter(str_detect(tolower(collection_name), "tabula sapiens"))
-cat("\n==================== Tabula Sapiens ====================\n")
-show(ts_ds |> transmute(collection_name, dataset_title = substr(dataset_title, 1, 70), dataset_total_cell_count))
-cols <- c("dataset_id", "donor_id", "sex", "development_stage", "tissue", "tissue_general", "cell_type", "assay")
-message("Reading Tabula Sapiens metadata ...")
-ts <- bind_rows(lapply(ts_ds$dataset_id, function(id)
-  census$get("census_data")$get("homo_sapiens")$obs$read(value_filter = paste0("dataset_id == '", id, "' & is_primary_data == TRUE"), column_names = cols)$concat() |>
-    as.data.frame() |> as_tibble() |> mutate(across(where(is.factor), as.character))))
-ts <- ts |> mutate(ct = tolower(cell_type), blood_ec = str_detect(ct, "endothelial|vasa recta|aerocyte") & !str_detect(ct, "lymphatic|endocardial"))
-td <- ts |> filter(sex %in% c("female", "male")) |> group_by(donor_id, sex, development_stage, tissue_general) |>
-  summarise(cells = n(), blood_ECs = sum(blood_ec)) |> ungroup()
-write.csv(td, file.path(OUT, "tables", "K1_tabula_sapiens_donor_by_organ.csv"), row.names = FALSE)
-cat("\n-- Donors --\n")
-show(td |> group_by(donor_id, sex, development_stage) |> summarise(organs = n_distinct(tissue_general), cells = sum(cells), blood_ECs = sum(blood_ECs)) |> arrange(sex, donor_id))
-cat("\n-- Donors per organ by sex, at three endothelial-cell thresholds --\n")
-show(td |> group_by(tissue_general) |>
-       summarise(blood_ECs = sum(blood_ECs), F_any = sum(sex == "female" & blood_ECs > 0), M_any = sum(sex == "male" & blood_ECs > 0),
-                 F_30 = sum(sex == "female" & blood_ECs >= 30), M_30 = sum(sex == "male" & blood_ECs >= 30),
-                 F_100 = sum(sex == "female" & blood_ECs >= 100), M_100 = sum(sex == "male" & blood_ECs >= 100)) |> arrange(desc(blood_ECs)))
-cat("\n-- Endothelial labels --\n")
-show(ts |> filter(blood_ec) |> count(cell_type, name = "cells") |> arrange(desc(cells)))
+# (The Tabula Sapiens inventory was completed in the first run and is not repeated.)
 sink()
-message("\nFinished. Output saved in ", file.path(OUT, "tables", "K1_labels_output.txt"))
+message("\nFinished. Output saved in ", file.path(OUT, "tables", "K1_labels_output_kidney.txt"))
